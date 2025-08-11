@@ -1,0 +1,168 @@
+import copy
+import time
+
+def makeeasy(state):
+    inputnon = [int(x) for x in state.split()[1:]]
+    p1array = inputnon[1:7]
+    maxboard = []
+    p2array = inputnon[7:13]
+    currentPlayer = int(state.split()[-1])
+
+
+    if currentPlayer == 1:
+        maxboard = maxboard + p1array
+        maxboard.append(inputnon[13])
+        maxboard  = maxboard + p2array
+        maxboard.append(inputnon[14])
+    if currentPlayer == 2:
+        maxboard = maxboard + p2array
+        maxboard.append(inputnon[14])
+        maxboard  = maxboard + p1array
+        maxboard.append(inputnon[13])
+
+    return maxboard
+
+def changetomin(board):
+    newminboard = []
+    newminboard = newminboard + board[7:]
+    newminboard = newminboard + board[0:7]
+    return newminboard
+
+
+def is_terminal(board):
+    return all(x == 0 for x in board[0:6]) or all(x == 0 for x in board[7:13])
+
+
+def collect_remaining(board):
+    if all(x == 0 for x in board[0:6]):
+        for i in range(6):
+            board[13] += board[i + 7]
+            board[i + 7] = 0
+    if all(x == 0 for x in board[7:13]):
+        for i in range(6):
+            board[6] += board[i + 7] 
+            board[i] = 0
+
+
+def valid_moves(board):
+    valid = []
+    for i in range (6):
+        if board[i] > 0:
+            valid.append(i+1)
+    
+    return valid
+
+
+def make_move(move, board):
+    new_board = board.copy()
+    pos = move - 1
+    stones = new_board[pos]
+    new_board[pos] = 0  
+
+    while stones > 0:
+        pos = (pos + 1) % 14
+        if pos == 13:  
+            continue
+        new_board[pos] += 1
+        stones -= 1  
+
+    if 0 <= pos < 6 and new_board[pos] == 1 and new_board[12 - pos] > 0:
+        new_board[6] += new_board[12 - pos] + 1
+        new_board[pos] = 0
+        new_board[12 - pos] = 0
+
+    extraTurn = (pos == 6)
+
+    return extraTurn, new_board
+
+
+
+def evaluate(board):
+    score = (board[6] - board[13])
+    myscore = board[6]
+    capturePotential = 0
+    numofvalid = len(valid_moves(board))
+    for i in range(6):
+        if board[i] == 0 and board[12 -1] >= 0:
+            potential = board[12-i] + 1
+            capturePotential = max(capturePotential, potential)
+    return (myscore) + (0.5 * score) + (4 * capturePotential) + (numofvalid)
+
+
+def alpha_beta_search(maxb, depth): 
+    best_value = float('-inf')
+    best_move = None
+    for move in valid_moves(maxb):
+        extraTurn, new_board = make_move(move, maxb)
+        if extraTurn:
+            value = maxValue(new_board, depth -1 , float('-inf'), float('inf'))
+        else: 
+            value = minValue(changetomin(new_board), depth - 1, float('-inf'), float('inf'))
+
+        if value > best_value or (value == best_value and extraTurn):
+            best_value = value
+            best_move = move
+
+    return best_move
+
+
+def maxValue(board, depth, alpha, beta):
+    if is_terminal(board):
+        collect_remaining(board)
+        return evaluate(board)
+    if depth == 0: 
+        return evaluate(board)
+
+    value = float('-inf')
+    for move in valid_moves(board):
+        extraTurn, new_board = make_move(move, board)
+        if extraTurn:
+            value = max(value, maxValue(new_board, depth -1, alpha, beta))
+
+        else:
+            value = max(value, minValue(changetomin(new_board), depth -1, alpha, beta))
+            alpha = max(alpha, value)
+
+            if alpha >= beta:
+                break
+
+    return value 
+
+def minValue(board, depth, alpha, beta):
+    therealone = board.copy()
+    if is_terminal(board):
+        collect_remaining(board)
+        return evaluate(changetomin(therealone))
+    
+    if depth == 0:
+        return evaluate(changetomin(therealone))
+    
+    value = float('inf')
+    for move in valid_moves(board):
+        extraTurn, new_board = make_move(move, board)
+        if extraTurn:
+            value = min(value, minValue(new_board, depth -1, alpha, beta))
+
+        else:
+            value = min(value, maxValue(changetomin(new_board), depth -1, alpha, beta))
+            beta = min(beta, value)
+
+            if alpha >= beta:
+                break
+
+    return value 
+
+    
+def main(): 
+    #state = "state 6 0 2 10 3 10 0 6 2 0 0 1 8 3 3 13 2"
+    state = input()
+    maxboard = makeeasy(state)
+    start = time.time()
+    print(alpha_beta_search(maxboard, 10))
+    end = time.time()
+    #print(end - start)
+    
+    
+    
+if __name__ == "__main__":
+    main()
